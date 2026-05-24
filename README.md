@@ -65,3 +65,28 @@ As the current lead for the OrderFlow project, you’ve received recent reports 
 3.  **"Some completed orders show payment status as pending"** — For some specific orders, users have reported seeing ambiguous payment statuses or multiple payment records when only one was expected.
 
 Your job is to investigate the database schema, write reproduction queries, identify the root causes of these bugs, and fix them.
+
+## Bugs Fixed
+
+All three production bugs have been identified, traced to their schema-level root causes, and fixed:
+
+| # | Symptom | Root Cause | Fix |
+|---|---------|------------|-----|
+| 1 | Orders with `null` customer name in API response | `orders.customer_id` missing `FOREIGN KEY REFERENCES customers(id)` | Added FK constraint — orphaned `customer_id` values now rejected at insert time |
+| 2 | Products with negative `inventory_count` | `products.inventory_count` missing `CHECK (inventory_count >= 0)` | Added CHECK constraint — any insert or update resulting in negative stock is rejected |
+| 3 | Multiple payment records per order with conflicting statuses | `payments.order_id` missing `UNIQUE` constraint | Added UNIQUE constraint — only one payment record allowed per order |
+
+See [DEBUG-REPORT.md](./DEBUG-REPORT.md) for the full investigation trail: reproduction queries, data flow traces, root cause analysis, fix SQL, and validation.
+
+## Live Deployment
+
+> **URL:** *(Add Render/Railway deployment URL here after deploying)*
+
+### Deploy to Render
+
+1. Go to [render.com](https://render.com) → New Web Service → Connect your GitHub repo
+2. Build command: `npm install`
+3. Start command: `npm start`
+4. Add environment variable: `DATABASE_URL` → your PostgreSQL connection string
+5. Deploy
+
