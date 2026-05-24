@@ -13,27 +13,33 @@ CREATE TABLE customers (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- BUG 1: Missing Foreign Key (Orphaned Records)
--- The customer_id column should have a REFERENCES customers(id) constraint, but it's missed here.
+-- FIX 1: Added FOREIGN KEY constraint on customer_id.
+-- Previously: customer_id INTEGER  (no reference)
+-- Now: customer_id INTEGER NOT NULL REFERENCES customers(id)
+-- This prevents orders from being created for non-existent customers,
+-- eliminating orphaned records that cause NULL customer_name in JOIN results.
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
-    customer_id INTEGER, -- NO FOREIGN KEY!
+    customer_id INTEGER NOT NULL REFERENCES customers(id),
     status VARCHAR(20) DEFAULT 'pending',
     total DECIMAL(10,2) DEFAULT 0.00,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- BUG 2: Missing CHECK Constraint (Invalid Data)
--- The inventory_count column should have a CHECK(inventory_count >= 0) constraint.
+-- FIX 2: Added CHECK constraint on inventory_count.
+-- Previously: inventory_count INTEGER DEFAULT 0  (no lower bound)
+-- Now: inventory_count INTEGER DEFAULT 0 CHECK (inventory_count >= 0)
+-- This prevents negative stock values from being written by any INSERT or UPDATE,
+-- enforcing the real-world rule that you cannot have fewer than zero units in stock.
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     sku VARCHAR(50) NOT NULL UNIQUE,
-    inventory_count INTEGER DEFAULT 0, -- NO CHECK CONSTRAINT!
+    inventory_count INTEGER DEFAULT 0 CHECK (inventory_count >= 0),
     price DECIMAL(10,2) NOT NULL
 );
 
--- Order Items table
+-- Order Items table (unchanged — already had proper FK constraints)
 CREATE TABLE order_items (
     id SERIAL PRIMARY KEY,
     order_id INTEGER NOT NULL REFERENCES orders(id),
@@ -42,12 +48,15 @@ CREATE TABLE order_items (
     unit_price DECIMAL(10,2) NOT NULL
 );
 
--- BUG 3: Missing UNIQUE Constraint (Duplicate Key Problem)
--- The order_id column should have a UNIQUE constraint to ensure only one payment record per order.
+-- FIX 3: Added UNIQUE constraint on order_id in payments.
+-- Previously: order_id INTEGER NOT NULL  (no uniqueness enforcement)
+-- Now: order_id INTEGER NOT NULL UNIQUE
+-- This ensures each order can only have one payment record, preventing duplicate
+-- entries that cause ambiguous or contradictory payment statuses.
 CREATE TABLE payments (
     id SERIAL PRIMARY KEY,
-    order_id INTEGER NOT NULL, -- NO UNIQUE CONSTRAINT!
+    order_id INTEGER NOT NULL UNIQUE,
     amount DECIMAL(10,2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending', -- Can be 'pending' or 'completed'
+    status VARCHAR(20) DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
